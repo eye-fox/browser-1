@@ -1,0 +1,16 @@
+name: browser2
+on:
+  workflow_dispatch:
+    inputs:
+      cmd_b64:
+        description: test
+        required: true
+        type: string
+      session:
+        default: default
+        type: string
+jobs:
+  exec:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo Hello from browser2 workflow
