@@ -32,18 +32,23 @@ jobs:
           path: /tmp/browser-local-data
           key: browser-profile-${{ inputs.session }}
       - run: |
+          set +e
           chmod +x browser-local
           CMD=$(echo "${{ inputs.cmd_b64 }}" | base64 -d)
           python3 browser-local --session "${{ inputs.session }}" start --port=9222 &
           SPID=$!
-          for i in $(seq 1 15); do
-            CDP=$(python3 -c "import json; print(json.load(open('/tmp/browser-local.pid'))['cdp_url'])" 2>/dev/null)
+          CDP=""
+          for i in $(seq 1 20); do
+            CDP=$(python3 -c "import json; print(json.load(open('/tmp/browser-local.pid'))['cdp_url'])" 2>/dev/null || echo "")
+            [ -n "$CDP" ] && break
+            CDP=$(python3 -c "import json,urllib.request; print(json.loads(urllib.request.urlopen('http://127.0.0.1:9222/json/version').read()).get('webSocketDebuggerUrl',''))" 2>/dev/null || echo "")
             [ -n "$CDP" ] && break
             sleep 2
           done
-          [ -z "$CDP" ] && echo "FAIL" && exit 1
+          if [ -z "$CDP" ]; then echo "FAIL: CDP not found"; exit 1; fi
           python3 browser-local --cdp-url "$CDP" --session "${{ inputs.session }}" $CMD 2>&1 || true
           kill $SPID 2>/dev/null || true
+          pkill -f remote-debugging 2>/dev/null || true
       - if: always()
         uses: actions/cache/save@v4
         with:
